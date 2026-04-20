@@ -81,14 +81,7 @@ public class Main : BasePlugin
                         battleUIRoot.NewOperationController.UpdateDraggingSlotFromOpSlotToSinAction();
                         UnitSinModel dragginSin = battleUIRoot.AbUIController.GetDragginSin();
                         battleUIRoot.CreateExpectedArrowByActionOver(dragginSin.GetBattleActionModel().SinAction, unitActionSlotUI._sinAction);
-                        if (unitActionSlotUI._sinAction.CurrentBattleAction != null)
-                        {
-                            if (unitActionSlotUI._sinAction.CurrentBattleAction.GetMainTargetSinAction() == dragginSin.GetBattleActionModel().SinAction && BattleActionModel.CanDuelBoth(dragginSin.GetBattleActionModel(), unitActionSlotUI._sinAction.CurrentBattleAction))
-                            {
-                                battleActionModelManager.RemoveDuel(unitActionSlotUI._sinAction.CurrentBattleAction);
-                                battleActionModelManager.AddDuel(unitActionSlotUI._sinAction.CurrentBattleAction, dragginSin.GetBattleActionModel());
-                            }
-                        }
+
                         battleUIRoot.ShowExpectedSkillInfoByOverAction(dragginSin, unitActionSlotUI._sinAction);
                         if (unitActionSlotUI._sinAction.currentSelectSin != null)
                         {
@@ -99,14 +92,7 @@ public class Main : BasePlugin
                     {
                         battleUIRoot.AbUIController._abOperationTracker._opDragginData._targetSinActionModel = unitActionSlotUI._sinAction;
                         UnitSinModel clickedSin = battleUIRoot.AbUIController.GetClickedSin();
-                        if (unitActionSlotUI._sinAction.CurrentBattleAction != null)
-                        {
-                            if (unitActionSlotUI._sinAction.CurrentBattleAction.GetMainTargetSinAction() == clickedSin.GetBattleActionModel().SinAction && BattleActionModel.CanDuelBoth(clickedSin.GetBattleActionModel(), unitActionSlotUI._sinAction.CurrentBattleAction))
-                            {
-                                battleActionModelManager.RemoveDuel(unitActionSlotUI._sinAction.CurrentBattleAction);
-                                battleActionModelManager.AddDuel(unitActionSlotUI._sinAction.CurrentBattleAction, clickedSin.GetBattleActionModel());
-                            }
-                        }
+
                         if (unitActionSlotUI._sinAction != null)
                         {
                             battleUIRoot.CreateExpectedArrowByActionOver(clickedSin.GetBattleActionModel().SinAction, unitActionSlotUI._sinAction);
@@ -168,24 +154,61 @@ public class Main : BasePlugin
                     }
                 }));
                 unitActionSlotUI._trigger.AttachEntry(UnityEngine.EventSystems.EventTriggerType.PointerClick, new Action(() =>
-                {
-                    if (battleUIRoot.AbUIController.IsDragginSin())
-                    {
-                        UnitSinModel dragginSin = battleUIRoot.AbUIController.GetDragginSin();
-                        battleUIRoot.OffSkillInfo();
-                        battleUIRoot.NewOperationController.EndDrag(dragginSin);
-                        battleUIRoot.AbUIController._abOperationTracker.EndActionClicked();
-                    }
-                    else if (battleUIRoot.AbUIController.IsClickedOpSlot())
-                    {
-                        UnitSinModel clickedSin = battleUIRoot.AbUIController.GetClickedSin();
-                        battleUIRoot.OffSkillInfo();
-                        SinActionModel sinAction = clickedSin.GetBattleActionModel().SinAction;
-                        sinAction.SelectSin(clickedSin, unitActionSlotUI._sinAction);
-                        battleUIRoot.NewOperationController.EndDrag(clickedSin);
-                        battleUIRoot.AbUIController._abOperationTracker.EndActionClicked();
-                    }
-                }));
+               {
+                   if (battleUIRoot.AbUIController.IsDragginSin())
+                   {
+                       UnitSinModel dragginSin = battleUIRoot.AbUIController.GetDragginSin();
+                       battleUIRoot.OffSkillInfo();
+                       battleUIRoot.NewOperationController.EndDrag(dragginSin);
+                       battleUIRoot.AbUIController._abOperationTracker.EndActionClicked();
+                   }
+                   else if (battleUIRoot.AbUIController.IsClickedOpSlot())
+                   {
+                       UnitSinModel clickedSin = battleUIRoot.AbUIController.GetClickedSin();
+                       battleUIRoot.OffSkillInfo();
+
+                       SinActionModel sinAction = clickedSin.GetBattleActionModel().SinAction;
+                       sinAction.SelectSin(clickedSin, unitActionSlotUI._sinAction);
+
+                       var selfBattleActionModel = clickedSin.GetBattleActionModel();
+                       //var targetBattleActionModel = unitActionSlotUI._sinAction.GetSinByIndex(unitActionSlotUI._sinAction.GetSlotIndex());
+                       var targetBattleActionModel = unitActionSlotUI._sinAction.CurrentBattleAction;
+
+                       if (
+                           BattleActionModel.CanDuelBoth(selfBattleActionModel, targetBattleActionModel)
+                           && (
+                               (targetBattleActionModel.GetMainTarget() == selfBattleActionModel.Model)
+                               || (
+                                   targetBattleActionModel.CanBeChangedTarget()
+                                   && (selfBattleActionModel.SinAction.GetCurrentSpeed() > (targetBattleActionModel.SinAction.GetCurrentSpeed() + 1))
+                               )
+                           )
+                       )
+                       {
+                           battleActionModelManager.RemoveDuel(targetBattleActionModel);
+                           battleActionModelManager.RemoveDuel(selfBattleActionModel);
+                           battleActionModelManager.AddDuel(targetBattleActionModel, selfBattleActionModel);
+                           targetBattleActionModel._targetDataDetail.GetCurrentTargetSet()._mainTarget = new TargetSinActionData(clickedSin._currentAction._sinAction);
+                       }
+                       else if (
+                           BattleActionModel.BothCanDuelAndAtLeastOneAttackSkill(selfBattleActionModel, targetBattleActionModel)
+                           && (
+                               (targetBattleActionModel.GetMainTarget() == selfBattleActionModel.Model)
+                               || (
+                                   targetBattleActionModel.CanBeChangedTarget()
+                                   && (selfBattleActionModel.SinAction.GetCurrentSpeed() > (targetBattleActionModel.SinAction.GetCurrentSpeed() + 1))
+                               )
+                           )
+                       )
+                       {
+                           targetBattleActionModel._targetDataDetail.GetCurrentTargetSet()._mainTarget = new TargetSinActionData(clickedSin._currentAction._sinAction);
+                       }
+
+                       battleUIRoot.NewOperationController.EndDrag(clickedSin);
+                       battleUIRoot.AbUIController._abOperationTracker.EndActionClicked();
+
+                   }
+               }));
             }
         }
     }
